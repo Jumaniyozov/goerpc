@@ -1,0 +1,172 @@
+version: '3'
+
+dotenv: [ '.env' ]
+
+env:
+  CURRENT_DIR: $(pwd)
+  APP: $(basename {{.CURRENT_DIR}})
+  API_CMD_DIR: '{{.CURRENT_DIR}}/cmd/api'
+  API_DOCS_DIR: '{{.CURRENT_DIR}}/api/docs'
+  BUILD_DIR_LINUX: '{{.CURRENT_DIR}}/bin/linux_amd64'
+  BUILD_DIR_WINDOWS: '{{.CURRENT_DIR}}/bin/windows_amd64'
+  TAG: 0.0.1
+  ENV_TAG: 0.0.1
+  LOCAL_BIN: '{{.CURRENT_DIR}}/bin'
+
+tasks:
+  install-deps:
+    desc: Install dependencies
+    cmds:
+#      - GOBIN={{.LOCAL_BIN}} go install github.com/pressly/goose/v3/cmd/goose@latest
+#      - GOBIN={{.LOCAL_BIN}} go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+      - GOBIN={{.LOCAL_BIN}} go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+      - GOBIN={{.LOCAL_BIN}} go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+#      - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.31.0
+      - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.38.0
+
+
+  buf/generate:
+    desc: Generate buf files
+    cmds:
+      - PWD={{.CURRENT_DIR}} {{.LOCAL_BIN}}/buf generate proto
+
+  proto/generate:
+    desc: Generate note api
+    cmds:
+      - protoc --go_out=. --go_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go=bin/protoc-gen-go --plugin=protoc-gen-go=bin/protoc-gen-go --go-grpc_out=. --go-grpc_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go-grpc=bin/protoc-gen-go-grpc proto/dummy/v1/dummy.proto
+
+
+  db/create/docker/container/postgres:
+    desc: Create docker container for postgres
+    requires:
+      vars: [ DOCKER_POSTGRES_CONTAINER_NAME, POSTGRES_PORT, POSTGRES_PASSWORD, DOCKER_VOLUME_NAME ]
+    cmds:
+      - echo 'Creating docker postgres container...'
+      - docker run -d --name {{.DOCKER_POSTGRES_CONTAINER_NAME}} -p {{.POSTGRES_PORT}}:5432 -e POSTGRES_PASSWORD={{.POSTGRES_PASSWORD}} -v {{.DOCKER_VOLUME_NAME}}:/var/lib/postgresql/data --restart always postgres
+
+  db/create/docker/database:
+    requires:
+      vars: [ DOCKER_POSTGRES_CONTAINER_NAME, POSTGRES_USER, POSTGRES_DB_NAME ]
+    cmds:
+      - echo 'Creating docker database...'
+      - docker exec -it {{.DOCKER_POSTGRES_CONTAINER_NAME}} createdb --username={{.POSTGRES_USER}} --owner={{.POSTGRES_USER}} {{.POSTGRES_DB_NAME}}
+
+  db/drop/docker/database:
+    requires:
+      vars: [ DOCKER_POSTGRES_CONTAINER_NAME, POSTGRES_USER, POSTGRES_DB_NAME ]
+    cmds:
+      - echo 'Dropping docker database...'
+      - docker exec -it {{.DOCKER_POSTGRES_CONTAINER_NAME}} dropdb --username={{.POSTGRES_USER}} {{.POSTGRES_DB_NAME}}
+
+  db/migrations/status:
+    cmds:
+      - echo 'Checking migration status...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose status
+
+  db/migrations/version:
+    cmds:
+      - echo 'Checking migration version...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose version
+
+  db/migrations/validate:
+    cmds:
+      - echo 'Validating migrations...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose validate
+
+  db/migrations/fix:
+    cmds:
+      - echo 'Fixing migrations to sequantial order...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose fix
+
+
+  # db/migrations/new name=$1: create a new database migration
+  db/migrate/new:
+    requires:
+      vars: [ name ]
+    cmds:
+      - echo 'Creating migration files for ${name}...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose create {{.name}} sql
+
+  db/migrate/up:
+    prompt: You are running up migrations are you sure about running them up?... Do you want to continue?
+    cmds:
+      - echo 'Running up migrations...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose up
+
+  db/migrate/up/to:
+    prompt: You are running up migrations are you sure about running them up?... Do you want to continue?
+    requires:
+      vars: [ version ]
+    cmds:
+      - echo 'Running up migrations to version...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose up-to {{.version}}
+
+  db/migrate/down:
+    prompt: You are running down migrations are you sure about running them down?... Do you want to continue?
+    cmds:
+      - echo 'Running down migrations...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose down
+
+  db/migrate/down/to:
+    prompt: You are running down migrations are you sure about running them up?... Do you want to continue?
+    requires:
+      vars: [ version ]
+    cmds:
+      - echo 'Running down migrations to version...'
+      - GOOSE_DRIVER={{.GOOSE_DRIVER}} GOOSE_DBSTRING={{.DB_URL}} GOOSE_MIGRATION_DIR={{.GOOSE_MIGRATION_DIR}} {{.LOCAL_BIN}}/goose down-to {{.version}}
+
+
+  db/sqlc:
+    cmds:
+      - echo 'Generating sqlc files...'
+      - cwd={{.LOCAL_BIN}} {{.LOCAL_BIN}}/sqlc generate
+
+
+  # vendor: tidy and vendor dependencies
+  vendor:
+    cmds:
+      - echo 'Tidying and verifying module dependencies...'
+      - go mod tidy
+      - go mod verify
+      - echo 'Vendoring dependencies...'
+      - go mod vendor
+
+  audit:
+    cmds:
+      - task: vendor
+      - echo 'Formatting code...'
+      - go fmt ./...
+      - echo 'Vetting code...'
+      - go vet ./...
+      - staticcheck ./...
+      - echo 'Running tests...'
+  #      - go test -race -vet=off ./...
+
+
+  run/api:
+    cmds:
+      - echo 'Starting a server...'
+      - cmd: DEBUG=TRUE {{.BUILD_DIR_LINUX}}/{{.NAME}}
+        platforms:
+          - linux
+      - cmd: DEBUG=TRUE {{.BUILD_DIR_WINDOWS}}/{{.NAME}}
+        platforms:
+          - windows
+
+  build/api:
+    requires:
+      vars: [ NAME ]
+    cmds:
+      - echo 'Building cmd/api...'
+      - task: db/sqlc
+      - cmd: GOFLAGS=-buildvcs=false GOOS=linux GOARCH=amd64 go build -ldflags="-s" -o={{.BUILD_DIR_LINUX}}/{{.NAME}} {{.API_CMD_DIR}} && cp .env {{.BUILD_DIR_LINUX}}/.env
+        platforms: [ linux ]
+      - cmd: go build {{.API_CMD_DIR}}
+        platforms: [ windows ]
+      - task: run/api
+
+
+  swag:
+    cmds:
+      - echo 'Initializing swagger...'
+      - swag init -dir {{.API_CMD_DIR}} -o {{.API_DOCS_DIR}}
