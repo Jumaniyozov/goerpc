@@ -38,6 +38,15 @@ func main() {
 	printTasks(c)
 	fmt.Println("-------------------")
 
+	fmt.Println("-------UPDATE------")
+	updateTasks(c, []*pb.UpdateTasksRequest{
+		{Task: &pb.Task{Id: 1, Description: "A better name for the task"}},
+		{Task: &pb.Task{Id: 2, DueDate: timestamppb.New(dueDate.Add(5 * time.Hour))}},
+		{Task: &pb.Task{Id: 3, Done: true}},
+	}...)
+	printTasks(c)
+	fmt.Println("-------------------")
+
 	defer func(conn *grpc.ClientConn) {
 		if err := conn.Close(); err != nil {
 			log.Fatalf("unexpected error: %v", err)
@@ -81,4 +90,26 @@ func printTasks(c pb.TodoServiceClient) {
 		fmt.Println(res.Task.String(), "overdue: ", res.Overdue)
 	}
 
+}
+
+func updateTasks(c pb.TodoServiceClient, reqs ...*pb.UpdateTasksRequest) {
+	stream, err := c.UpdateTasks(context.Background())
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+	for _, req := range reqs {
+		err := stream.Send(req)
+		if err != nil {
+			return
+		}
+		if err != nil {
+			log.Fatalf("unexpected error: %v", err)
+		}
+		if req.Task != nil {
+			fmt.Printf("updated task with id: %d\n", req.Task.Id)
+		}
+	}
+	if _, err = stream.CloseAndRecv(); err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
 }

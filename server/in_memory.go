@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	pb "github.com/jumaniyozov/goerpc/proto/gen/todo/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
@@ -32,4 +33,17 @@ func (d *inMemoryDb) getTasks(f func(any) error) error {
 		}
 	}
 	return nil
+}
+
+func (d *inMemoryDb) updateTask(id uint64, description string, dueDate time.Time, done bool) error {
+	for i, task := range d.tasks {
+		if task.Id == id {
+			t := d.tasks[i]
+			t.Description = description
+			t.DueDate = timestamppb.New(dueDate)
+			t.Done = done
+			return nil
+		}
+	}
+	return fmt.Errorf("task with id %d not found", id)
 }
