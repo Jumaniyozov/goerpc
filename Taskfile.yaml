@@ -17,13 +17,12 @@ tasks:
   install-deps:
     desc: Install dependencies
     cmds:
-#      - GOBIN={{.LOCAL_BIN}} go install github.com/pressly/goose/v3/cmd/goose@latest
-#      - GOBIN={{.LOCAL_BIN}} go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+      #      - GOBIN={{.LOCAL_BIN}} go install github.com/pressly/goose/v3/cmd/goose@latest
+      #      - GOBIN={{.LOCAL_BIN}} go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
       - GOBIN={{.LOCAL_BIN}} go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
       - GOBIN={{.LOCAL_BIN}} go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-#      - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.31.0
+      #      - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.31.0
       - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.38.0
-
 
   buf/generate:
     desc: Generate buf files
@@ -33,7 +32,7 @@ tasks:
   proto/generate:
     desc: Generate note api
     cmds:
-      - protoc --go_out=. --go_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go=bin/protoc-gen-go --plugin=protoc-gen-go=bin/protoc-gen-go --go-grpc_out=. --go-grpc_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go-grpc=bin/protoc-gen-go-grpc proto/dummy/v1/dummy.proto
+      - protoc --go_out=. --go_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go=bin/protoc-gen-go --plugin=protoc-gen-go=bin/protoc-gen-go --go-grpc_out=. --go-grpc_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go-grpc=bin/protoc-gen-go-grpc proto/todo/v1/*.proto
 
 
   db/create/docker/container/postgres:
@@ -143,6 +142,14 @@ tasks:
   #      - go test -race -vet=off ./...
 
 
+  run/server:
+    cmds:
+      - go run ./server/ 0.0.0.0:50051
+
+  run/client:
+    cmds:
+      - go run ./client/ 0.0.0.0:50051
+
   run/api:
     cmds:
       - echo 'Starting a server...'
@@ -170,3 +177,15 @@ tasks:
     cmds:
       - echo 'Initializing swagger...'
       - swag init -dir {{.API_CMD_DIR}} -o {{.API_DOCS_DIR}}
+
+  bazel/gazelle:
+    cmds:
+      - bazelisk run //:gazelle
+
+  bazel/server:
+    cmds:
+      - bazelisk run //server:server 0.0.0.0:50051
+
+  bazel/client:
+    cmds:
+      - bazelisk run //client:client 0.0.0.0:50051
