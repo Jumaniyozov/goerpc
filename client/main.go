@@ -47,6 +47,13 @@ func main() {
 	printTasks(c)
 	fmt.Println("-------------------")
 
+	fmt.Println("-------DELETE------")
+	deleteTasks(c, []*pb.DeleteTasksRequest{
+		{Id: 10},
+	}...)
+	printTasks(c)
+	fmt.Println("-------------------")
+
 	defer func(conn *grpc.ClientConn) {
 		if err := conn.Close(); err != nil {
 			log.Fatalf("unexpected error: %v", err)
@@ -112,4 +119,39 @@ func updateTasks(c pb.TodoServiceClient, reqs ...*pb.UpdateTasksRequest) {
 	if _, err = stream.CloseAndRecv(); err != nil {
 		log.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func deleteTasks(c pb.TodoServiceClient, reqs ...*pb.DeleteTasksRequest) {
+	stream, err := c.DeleteTasks(context.Background())
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	waitc := make(chan struct{})
+
+	go func() {
+		for {
+			_, err := stream.Recv()
+			if err == io.EOF {
+				close(waitc)
+				break
+			}
+			if err != nil {
+				log.Fatalf("error while receiving: %v\n", err)
+			}
+			log.Println("deleted tasks")
+		}
+	}()
+
+	for _, req := range reqs {
+		if err := stream.Send(req); err != nil {
+			return
+		}
+	}
+
+	if err := stream.CloseSend(); err != nil {
+		return
+	}
+
+	<-waitc
 }

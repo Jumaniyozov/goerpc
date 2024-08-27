@@ -22,6 +22,7 @@ const (
 	TodoService_AddTask_FullMethodName     = "/todo.v1.TodoService/AddTask"
 	TodoService_ListTasks_FullMethodName   = "/todo.v1.TodoService/ListTasks"
 	TodoService_UpdateTasks_FullMethodName = "/todo.v1.TodoService/UpdateTasks"
+	TodoService_DeleteTasks_FullMethodName = "/todo.v1.TodoService/DeleteTasks"
 )
 
 // TodoServiceClient is the client API for TodoService service.
@@ -31,6 +32,7 @@ type TodoServiceClient interface {
 	AddTask(ctx context.Context, in *AddTaskRequest, opts ...grpc.CallOption) (*AddTaskResponse, error)
 	ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ListTasksResponse], error)
 	UpdateTasks(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UpdateTasksRequest, UpdateTasksResponse], error)
+	DeleteTasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[DeleteTasksRequest, DeleteTasksResponse], error)
 }
 
 type todoServiceClient struct {
@@ -83,6 +85,19 @@ func (c *todoServiceClient) UpdateTasks(ctx context.Context, opts ...grpc.CallOp
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type TodoService_UpdateTasksClient = grpc.ClientStreamingClient[UpdateTasksRequest, UpdateTasksResponse]
 
+func (c *todoServiceClient) DeleteTasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[DeleteTasksRequest, DeleteTasksResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &TodoService_ServiceDesc.Streams[2], TodoService_DeleteTasks_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[DeleteTasksRequest, DeleteTasksResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TodoService_DeleteTasksClient = grpc.BidiStreamingClient[DeleteTasksRequest, DeleteTasksResponse]
+
 // TodoServiceServer is the server API for TodoService service.
 // All implementations must embed UnimplementedTodoServiceServer
 // for forward compatibility.
@@ -90,6 +105,7 @@ type TodoServiceServer interface {
 	AddTask(context.Context, *AddTaskRequest) (*AddTaskResponse, error)
 	ListTasks(*ListTasksRequest, grpc.ServerStreamingServer[ListTasksResponse]) error
 	UpdateTasks(grpc.ClientStreamingServer[UpdateTasksRequest, UpdateTasksResponse]) error
+	DeleteTasks(grpc.BidiStreamingServer[DeleteTasksRequest, DeleteTasksResponse]) error
 	mustEmbedUnimplementedTodoServiceServer()
 }
 
@@ -108,6 +124,9 @@ func (UnimplementedTodoServiceServer) ListTasks(*ListTasksRequest, grpc.ServerSt
 }
 func (UnimplementedTodoServiceServer) UpdateTasks(grpc.ClientStreamingServer[UpdateTasksRequest, UpdateTasksResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method UpdateTasks not implemented")
+}
+func (UnimplementedTodoServiceServer) DeleteTasks(grpc.BidiStreamingServer[DeleteTasksRequest, DeleteTasksResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method DeleteTasks not implemented")
 }
 func (UnimplementedTodoServiceServer) mustEmbedUnimplementedTodoServiceServer() {}
 func (UnimplementedTodoServiceServer) testEmbeddedByValue()                     {}
@@ -166,6 +185,13 @@ func _TodoService_UpdateTasks_Handler(srv interface{}, stream grpc.ServerStream)
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type TodoService_UpdateTasksServer = grpc.ClientStreamingServer[UpdateTasksRequest, UpdateTasksResponse]
 
+func _TodoService_DeleteTasks_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TodoServiceServer).DeleteTasks(&grpc.GenericServerStream[DeleteTasksRequest, DeleteTasksResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TodoService_DeleteTasksServer = grpc.BidiStreamingServer[DeleteTasksRequest, DeleteTasksResponse]
+
 // TodoService_ServiceDesc is the grpc.ServiceDesc for TodoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -187,6 +213,12 @@ var TodoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "UpdateTasks",
 			Handler:       _TodoService_UpdateTasks_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "DeleteTasks",
+			Handler:       _TodoService_DeleteTasks_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},

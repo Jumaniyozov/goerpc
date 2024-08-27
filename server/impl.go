@@ -42,3 +42,23 @@ func (s *server) UpdateTasks(stream pb.TodoService_UpdateTasksServer) error {
 		)
 	}
 }
+
+func (s *server) DeleteTasks(stream pb.TodoService_DeleteTasksServer) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		err = s.d.deleteTask(req.Id)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(&pb.DeleteTasksResponse{})
+		if err != nil {
+			return err
+		}
+	}
+}
