@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/encoding/gzip"
 	"io"
 	"log"
 	"os"
@@ -27,7 +28,7 @@ func addTask(c pb.TodoServiceClient, description string, dueDate time.Time) uint
 		Description: description,
 		DueDate:     timestamppb.New(dueDate),
 	}
-	res, err := c.AddTask(context.Background(), req /*, grpc.UseCompressor(gzip.Name)*/)
+	res, err := c.AddTask(context.Background(), req, grpc.UseCompressor(gzip.Name))
 
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
@@ -157,21 +158,22 @@ func main() {
 
 	addr := args[0]
 
-	//creds, err := credentials.NewClientTLSFromFile("./certs/ca_cert.pem", "x.test.example.com")
-	//if err != nil {
-	//	log.Fatalf("failed to load credentials: %v", err)
-	//}
+	creds, err := credentials.NewClientTLSFromFile("./certs/ca_cert.pem", "x.test.example.com")
+	if err != nil {
+		log.Fatalf("failed to load credentials: %v", err)
+	}
 
 	opts := []grpc.DialOption{
-		//grpc.WithTransportCredentials(creds),
+		grpc.WithTransportCredentials(creds),
 		////grpc.WithTransportCredentials(insecure.NewCredentials()),
 		//grpc.WithUnaryInterceptor(unaryAuthInterceptor),
 		//grpc.WithStreamInterceptor(streamAuthInterceptor),
 		////grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 		//grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		//grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(unaryAuthInterceptor),
 		grpc.WithStreamInterceptor(streamAuthInterceptor),
+		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 	}
 	conn, err := grpc.NewClient(addr, opts...)
 

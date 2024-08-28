@@ -3,6 +3,8 @@ package main
 import (
 	pb "github.com/jumaniyozov/goerpc/proto/gen/todo/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"log"
 	"net"
 	"os"
@@ -28,7 +30,13 @@ func main() {
 
 	log.Printf("listening at %s\n", addr)
 
+	creds, err := credentials.NewServerTLSFromFile("./certs/server_cert.pem", "./certs/server_key.pem")
+	if err != nil {
+		log.Fatalf("failed to create credentials: %v", err)
+	}
+
 	opts := []grpc.ServerOption{
+		grpc.Creds(creds),
 		grpc.UnaryInterceptor(unaryAuthInterceptor),
 		grpc.StreamInterceptor(streamAuthInterceptor),
 	}
