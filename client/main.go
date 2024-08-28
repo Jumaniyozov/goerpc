@@ -49,11 +49,11 @@ func addTask(c pb.TodoServiceClient, description string, dueDate time.Time) uint
 // printTasks calls the ListTasks server streaming endpoint
 // and displays the Tasks on stdout.
 func printTasks(c pb.TodoServiceClient, fm *fieldmaskpb.FieldMask) {
-	// ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	// ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
-	// defer cancel()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
+	//ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	//defer cancel()
 
 	req := &pb.ListTasksRequest{
 		Mask: fm,
@@ -75,10 +75,10 @@ func printTasks(c pb.TodoServiceClient, fm *fieldmaskpb.FieldMask) {
 			log.Fatalf("unexpected error: %v", err)
 		}
 
-		if res.Overdue {
-			log.Printf("CANCEL called")
-			cancel()
-		}
+		//if res.Overdue {
+		//	log.Printf("CANCEL called")
+		//	cancel()
+		//}
 
 		fmt.Println(res.Task.String(), "overdue: ", res.Overdue)
 	}
@@ -170,6 +170,8 @@ func main() {
 		////grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 		//grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(unaryAuthInterceptor),
+		grpc.WithStreamInterceptor(streamAuthInterceptor),
 	}
 	conn, err := grpc.NewClient(addr, opts...)
 
