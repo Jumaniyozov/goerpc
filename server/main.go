@@ -1,7 +1,7 @@
 package main
 
 import (
-	pb "github.com/jumaniyozov/goerpc/proto/gen/todo/v1"
+	pb "github.com/jumaniyozov/goerpc/proto/gen/todo/v2"
 	"google.golang.org/grpc"
 	"log"
 	"net"
