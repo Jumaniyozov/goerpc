@@ -174,6 +174,7 @@ func main() {
 		grpc.WithUnaryInterceptor(unaryAuthInterceptor),
 		grpc.WithStreamInterceptor(streamAuthInterceptor),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
 	}
 	conn, err := grpc.NewClient(addr, opts...)
 
