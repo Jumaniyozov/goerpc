@@ -146,7 +146,7 @@ tasks:
 
   run/server:
     cmds:
-      - go run ./server/ 0.0.0.0:50051
+      - go run ./server 0.0.0.0:50051 0.0.0.0:50052
 
   run/client:
     cmds:

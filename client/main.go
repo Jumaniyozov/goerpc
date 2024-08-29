@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/encoding/gzip"
 	"io"
 	"log"
 	"os"
@@ -12,6 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -19,6 +18,8 @@ import (
 	//"google.golang.org/grpc/encoding/gzip"
 
 	pb "github.com/jumaniyozov/goerpc/proto/gen/todo/v2"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 )
 
 // addTask calls the AddTask unary endpoint with a AddTaskRequest
@@ -28,7 +29,7 @@ func addTask(c pb.TodoServiceClient, description string, dueDate time.Time) uint
 		Description: description,
 		DueDate:     timestamppb.New(dueDate),
 	}
-	res, err := c.AddTask(context.Background(), req, grpc.UseCompressor(gzip.Name))
+	res, err := c.AddTask(context.Background(), req /*, grpc.UseCompressor(gzip.Name)*/)
 
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
@@ -50,11 +51,10 @@ func addTask(c pb.TodoServiceClient, description string, dueDate time.Time) uint
 // printTasks calls the ListTasks server streaming endpoint
 // and displays the Tasks on stdout.
 func printTasks(c pb.TodoServiceClient, fm *fieldmaskpb.FieldMask) {
-	ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
 	// ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
-	defer cancel()
-	//ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
-	//defer cancel()
+	// defer cancel()
+	ctx := context.Background()
 
 	req := &pb.ListTasksRequest{
 		Mask: fm,
@@ -76,10 +76,10 @@ func printTasks(c pb.TodoServiceClient, fm *fieldmaskpb.FieldMask) {
 			log.Fatalf("unexpected error: %v", err)
 		}
 
-		//if res.Overdue {
-		//	log.Printf("CANCEL called")
-		//	cancel()
-		//}
+		// if res.Overdue {
+		// 	log.Printf("CANCEL called")
+		// 	cancel()
+		// }
 
 		fmt.Println(res.Task.String(), "overdue: ", res.Overdue)
 	}
@@ -163,20 +163,26 @@ func main() {
 		log.Fatalf("failed to load credentials: %v", err)
 	}
 
+	retryOpts := []retry.CallOption{
+		retry.WithMax(3),
+		retry.WithBackoff(retry.BackoffExponential(100 * time.Millisecond)),
+		retry.WithCodes(codes.Unavailable),
+	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
-		////grpc.WithTransportCredentials(insecure.NewCredentials()),
-		//grpc.WithUnaryInterceptor(unaryAuthInterceptor),
-		//grpc.WithStreamInterceptor(streamAuthInterceptor),
-		////grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
-		//grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
 		//grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(unaryAuthInterceptor),
-		grpc.WithStreamInterceptor(streamAuthInterceptor),
-		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
+		grpc.WithChainUnaryInterceptor(
+			retry.UnaryClientInterceptor(retryOpts...),
+			unaryAuthInterceptor,
+		),
+		grpc.WithChainStreamInterceptor(
+			//retry.StreamClientInterceptor(retryOpts...),
+			streamAuthInterceptor,
+		),
+		//grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
 	}
-	conn, err := grpc.NewClient(addr, opts...)
+	conn, err := grpc.Dial(addr, opts...)
 
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
@@ -193,8 +199,6 @@ func main() {
 	fmt.Println("--------ADD--------")
 	dueDate := time.Now().Add(5 * time.Second)
 	id1 := addTask(c, "This is a task", dueDate)
-	//id1 := addTask(c, "This is task", dueDate)
-	//id2 := addTask(c, "This is another task", time.Now().Add(-5*time.Second))
 	id2 := addTask(c, "This is another task", dueDate)
 	id3 := addTask(c, "And yet another task", dueDate)
 	fmt.Println("-------------------")
@@ -223,7 +227,7 @@ func main() {
 	fmt.Println("-------------------")
 
 	fmt.Println("-------ERROR-------")
-	// addTask(c, "", dueDate)
-	// addTask(c, "not empty", time.Now().Add(-5*time.Second))
+	//addTask(c, "", dueDate)
+	//addTask(c, "not empty", time.Now().Add(-5*time.Second))
 	fmt.Println("-------------------")
 }
