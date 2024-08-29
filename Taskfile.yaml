@@ -23,6 +23,8 @@ tasks:
       - GOBIN={{.LOCAL_BIN}} go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
       #      - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.31.0
       - GOBIN={{.LOCAL_BIN}} GO111MODULE=on go install github.com/bufbuild/buf/cmd/buf@v1.38.0
+      - GOBIN={{.LOCAL_BIN}} go install github.com/envoyproxy/protoc-gen-validate@latest
+
 
   buf/generate:
     desc: Generate buf files
@@ -32,7 +34,7 @@ tasks:
   proto/generate:
     desc: Generate note api
     cmds:
-      - protoc --go_out=. --go_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go=bin/protoc-gen-go --plugin=protoc-gen-go=bin/protoc-gen-go --go-grpc_out=. --go-grpc_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go-grpc=bin/protoc-gen-go-grpc proto/todo/v1/*.proto
+      - ./bin/protoc --go_out=. --go_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go=bin/protoc-gen-go --plugin=protoc-gen-go=bin/protoc-gen-go --go-grpc_out=. --go-grpc_opt=module=github.com/jumaniyozov/goerpc --plugin=protoc-gen-go-grpc=bin/protoc-gen-go-grpc --validate_out="lang=go,paths=source_relative:proto" proto/todo/v2/*.proto
 
 
   db/create/docker/container/postgres:

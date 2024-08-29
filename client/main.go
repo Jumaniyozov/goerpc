@@ -193,6 +193,8 @@ func main() {
 	fmt.Println("--------ADD--------")
 	dueDate := time.Now().Add(5 * time.Second)
 	id1 := addTask(c, "This is a task", dueDate)
+	//id1 := addTask(c, "This is task", dueDate)
+	//id2 := addTask(c, "This is another task", time.Now().Add(-5*time.Second))
 	id2 := addTask(c, "This is another task", dueDate)
 	id3 := addTask(c, "And yet another task", dueDate)
 	fmt.Println("-------------------")

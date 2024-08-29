@@ -1,6 +1,9 @@
 version: v2
 managed:
   enabled: true
+  disable:
+    - file_option: go_package_prefix
+      module: buf.build/bufbuild/protovalidate
 plugins:
   - local: bin/protoc-gen-go
     out: proto/gen

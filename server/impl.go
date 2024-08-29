@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/bufbuild/protovalidate-go"
 	"io"
 	"log"
 	"slices"
@@ -38,18 +40,13 @@ func Filter(msg proto.Message, mask *fieldmaskpb.FieldMask) {
 // If description is empty or if dueDate is in the past,
 // it will return an InvalidArgument error.
 func (s *server) AddTask(_ context.Context, in *pb.AddTaskRequest) (*pb.AddTaskResponse, error) {
-	if len(in.Description) == 0 {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"expected a task description, got an empty string",
-		)
+	v, err := protovalidate.New()
+	if err != nil {
+		fmt.Println("failed to initialize validator:", err)
 	}
 
-	if in.DueDate.AsTime().Before(time.Now().UTC()) {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"expected a task due_date that is in the future",
-		)
+	if err = v.Validate(in); err != nil {
+		return nil, err
 	}
 
 	id, err := s.d.addTask(in.Description, in.DueDate.AsTime())

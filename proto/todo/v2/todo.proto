@@ -4,7 +4,7 @@ package todo.v2;
 
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
-
+import "buf/validate/validate.proto";
 
 option go_package = "github.com/jumaniyozov/goerpc/proto/todo/v2";
 
@@ -16,8 +16,8 @@ message Task {
 }
 
 message AddTaskRequest {
-  string description = 1;
-  google.protobuf.Timestamp due_date = 2;
+  string description = 1 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp due_date = 2 [(buf.validate.field).timestamp.gt_now = true];
 }
 
 message AddTaskResponse {
